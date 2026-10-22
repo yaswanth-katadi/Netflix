@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -11,29 +11,15 @@ import {
   ThumbsUp,
   ChevronLeft,
   ChevronRight,
+  X,
 } from "lucide-react";
+import {
+  getTrendingMovies,
+  getPopularMovies,
+  getActionMovies,
+  getPosterUrl,
+} from "./api/tmdb";
 import "./App.css";
-
-const image = (id, width = 500) =>
-  `https://image.tmdb.org/t/p/w${width}${id}`;
-
-const movies = {
-  trending: [
-    { id: "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", title: "Oppenheimer", year: "2023", rating: "8.1" },
-    { id: "/qJ2tW6WMUDux911r6m7haRef0WH.jpg", title: "The Dark Knight", year: "2008", rating: "9.0" },
-    { id: "/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg", title: "Interstellar", year: "2014", rating: "8.7" },
-    { id: "/8Vt6mWEReuy4Of61Lnj5Xj704m8.jpg", title: "Spider-Man", year: "2023", rating: "8.4" },
-    { id: "/d5NXSklXo0qyIYkgV94XAgMIckC.jpg", title: "Dune", year: "2021", rating: "8.0" },
-    { id: "/q719jXXEzOoYaps6babgKnONONX.jpg", title: "Avatar", year: "2009", rating: "7.9" },
-  ],
-  action: [
-    { id: "/t6HIqrRAclMCA60NsSmeqe9RmNV.jpg", title: "Avatar: The Way of Water", year: "2022", rating: "7.5" },
-    { id: "/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", title: "Inception", year: "2010", rating: "8.8" },
-    { id: "/8UlWHLMpgZm9bx6QYh0NFoq67TZ.jpg", title: "Wonder Woman 1984", year: "2020", rating: "5.4" },
-    { id: "/z8onk7LV9Mmw6zKz4hT6pzzvmvl.jpg", title: "The Batman", year: "2022", rating: "7.8" },
-    { id: "/q6y0Go1tsGEsmtFryDOJo3dEmqu.jpg", title: "The Shawshank Redemption", year: "1994", rating: "9.3" },
-  ],
-};
 
 function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -42,11 +28,12 @@ function Navbar() {
     <header className="navbar">
       <div className="nav-left">
         <a className="brand" href="#home">NETFLIX</a>
+
         <nav className="nav-links">
-          <a href="#home" className="active">Home</a>
-          <a href="#series">TV Shows</a>
+          <a className="active" href="#home">Home</a>
+          <a href="#tv-shows">TV Shows</a>
           <a href="#movies">Movies</a>
-          <a href="#trending">New & Popular</a>
+          <a href="#trending-now">New & Popular</a>
           <a href="#my-list">My List</a>
         </nav>
       </div>
@@ -57,20 +44,25 @@ function Navbar() {
             autoFocus
             className="nav-search"
             placeholder="Titles, people, genres"
+            aria-label="Search movies"
           />
         )}
+
         <button
           className="icon-button"
-          aria-label="Search"
+          aria-label="Toggle search"
           onClick={() => setSearchOpen(!searchOpen)}
         >
-          <Search size={21} />
+          {searchOpen ? <X size={21} /> : <Search size={21} />}
         </button>
+
         <button className="kids-link">Children</button>
+
         <button className="icon-button" aria-label="Notifications">
           <Bell size={21} />
         </button>
-        <button className="profile-button">
+
+        <button className="profile-button" aria-label="Choose profile">
           <span className="avatar">Y</span>
           <ChevronDown size={16} />
         </button>
@@ -79,89 +71,149 @@ function Navbar() {
   );
 }
 
-function Hero() {
+function Hero({ movie, onSelect }) {
+  const backdrop = getPosterUrl(movie?.backdrop_path, "original");
+
   return (
     <section className="hero" id="home">
-      <div className="hero-image" />
-      <div className="hero-content">
-        <motion.p
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="hero-kicker"
-        >
-          <span className="n-mark">N</span> SERIES
-        </motion.p>
+      <div
+        className="hero-image"
+        style={
+          backdrop
+            ? {
+                backgroundImage: `
+                  linear-gradient(0deg, #141414 1%, transparent 55%),
+                  linear-gradient(90deg, #141414 0%, #141414b3 27%, transparent 77%),
+                  url("${backdrop}")
+                `,
+              }
+            : undefined
+        }
+      />
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          STRANGER<br />THINGS
-        </motion.h1>
+      <motion.div
+        className="hero-content"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.65 }}
+      >
+        <p className="hero-kicker">
+          <span className="n-mark">N</span> FILM
+        </p>
+
+        <h1>{movie?.title || "DISCOVER MOVIES"}</h1>
 
         <p className="hero-description">
-          When a young boy vanishes, a small town uncovers a mystery
-          involving secret experiments, supernatural forces and one
-          extraordinary girl.
+          {movie?.overview ||
+            "Discover popular movies and find your next favourite."}
         </p>
 
         <div className="hero-actions">
-          <button className="play-button">
-            <Play size={22} fill="currentColor" /> Play
+          <button
+            className="play-button"
+            onClick={() => movie && onSelect(movie)}
+          >
+            <Play size={22} fill="currentColor" /> Explore
           </button>
-          <button className="more-button">
+
+          <button
+            className="more-button"
+            onClick={() => movie && onSelect(movie)}
+          >
             <Info size={22} /> More Info
           </button>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="hero-rating">
-        <span>16+</span>
-        <span>HD</span>
-      </div>
+      {movie && (
+        <div className="hero-rating">
+          <span>13+</span>
+          <span>HD</span>
+        </div>
+      )}
     </section>
   );
 }
 
 function MovieCard({ movie, onSelect, isSaved, onToggleSave }) {
+  const poster = getPosterUrl(movie.poster_path);
+  const year = movie.release_date?.slice(0, 4) || "N/A";
+  const rating = Number(movie.vote_average || 0).toFixed(1);
+
   return (
     <motion.article
       className="movie-card"
-      whileHover={{ scale: 1.07, y: -5 }}
+      whileHover={{ scale: 1.06, y: -5 }}
       transition={{ duration: 0.22 }}
       onClick={() => onSelect(movie)}
+      tabIndex={0}
+      role="button"
+      aria-label={`View ${movie.title}`}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") onSelect(movie);
+      }}
     >
-      <img src={image(movie.id)} alt={movie.title} loading="lazy" />
+      {poster ? (
+        <img
+          src={poster}
+          alt={movie.title}
+          loading="lazy"
+        />
+      ) : (
+        <div className="poster-placeholder">
+          {movie.title}
+        </div>
+      )}
+
       <div className="card-details">
         <div className="card-actions">
-          <button aria-label="Play" className="round-action">
+          <button
+            className="round-action"
+            aria-label={`Explore ${movie.title}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(movie);
+            }}
+          >
             <Play size={15} fill="currentColor" />
           </button>
+
           <button
-            aria-label={isSaved ? "Remove from My List" : "Add to My List"}
             className="round-action"
+            aria-label={isSaved ? "Remove from My List" : "Add to My List"}
             onClick={(event) => {
               event.stopPropagation();
               onToggleSave(movie);
             }}
           >
-            {isSaved ? <span>✓</span> : <Plus size={17} />}
+            {isSaved ? "✓" : <Plus size={17} />}
           </button>
-          <button aria-label="Like" className="round-action">
+
+          <button
+            className="round-action"
+            aria-label={`Like ${movie.title}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <ThumbsUp size={15} />
           </button>
+
           <button
-            aria-label="More information"
             className="round-action last-action"
+            aria-label="Movie details"
+            onClick={(event) => {
+              event.stopPropagation();
+              onSelect(movie);
+            }}
           >
             <ChevronDown size={17} />
           </button>
         </div>
+
         <p className="card-title">{movie.title}</p>
+
         <div className="card-meta">
-          <span className="match">{movie.rating * 10}% Match</span>
-          <span>{movie.year}</span>
+          <span className="match">{rating}/10</span>
+          <span>{year}</span>
           <span className="quality">HD</span>
         </div>
       </div>
@@ -169,12 +221,26 @@ function MovieCard({ movie, onSelect, isSaved, onToggleSave }) {
   );
 }
 
-function MovieRow({ title, items, onSelect, watchlist, onToggleSave }) {
+function MovieRow({
+  title,
+  items,
+  onSelect,
+  watchlist,
+  onToggleSave,
+}) {
   const [offset, setOffset] = useState(0);
 
+  if (!items.length) return null;
+
+  const maxOffset = Math.max(0, items.length - 4);
+
   return (
-    <section className="movie-row" id={title.toLowerCase().replaceAll(" ", "-")}>
+    <section
+      className="movie-row"
+      id={title.toLowerCase().replaceAll(" ", "-")}
+    >
       <h2>{title}</h2>
+
       <div className="row-viewport">
         <button
           className="row-arrow left"
@@ -186,14 +252,18 @@ function MovieRow({ title, items, onSelect, watchlist, onToggleSave }) {
 
         <div
           className="movie-track"
-          style={{ transform: `translateX(-${offset * 17}%)` }}
+          style={{
+            transform: `translateX(-${offset * 19}%)`,
+          }}
         >
           {items.map((movie) => (
             <MovieCard
-              key={movie.title}
+              key={movie.id}
               movie={movie}
               onSelect={onSelect}
-              isSaved={watchlist.some((saved) => saved.title === movie.title)}
+              isSaved={watchlist.some(
+                (saved) => saved.id === movie.id
+              )}
               onToggleSave={onToggleSave}
             />
           ))}
@@ -202,7 +272,9 @@ function MovieRow({ title, items, onSelect, watchlist, onToggleSave }) {
         <button
           className="row-arrow right"
           aria-label="Next movies"
-          onClick={() => setOffset(Math.min(items.length - 1, offset + 1))}
+          onClick={() =>
+            setOffset(Math.min(maxOffset, offset + 1))
+          }
         >
           <ChevronRight size={32} />
         </button>
@@ -218,22 +290,47 @@ function MovieModal({ movie, onClose, isSaved, onToggleSave }) {
     <div className="modal-backdrop" onClick={onClose}>
       <motion.div
         className="movie-modal"
-        initial={{ opacity: 0, scale: 0.94 }}
+        initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         onClick={(event) => event.stopPropagation()}
       >
-        <button className="modal-close" onClick={onClose} aria-label="Close">
+        <button
+          className="modal-close"
+          onClick={onClose}
+          aria-label="Close details"
+        >
           ×
         </button>
-        <img src={image(movie.id, 780)} alt={movie.title} />
+
+        {movie.backdrop_path && (
+          <img
+            src={getPosterUrl(movie.backdrop_path, "w780")}
+            alt=""
+          />
+        )}
+
         <div className="modal-content">
           <h2>{movie.title}</h2>
-          <p className="match">{movie.rating * 10}% Match</p>
-          <p>{movie.year} · HD · Movie</p>
-          <button className="play-button">
-            <Play size={20} fill="currentColor" /> Play
+
+          <p className="match">
+            {Number(movie.vote_average || 0).toFixed(1)}/10 TMDB
+          </p>
+
+          <p>
+            {movie.release_date?.slice(0, 4) || "Release date unavailable"}
+            {" · "}Movie
+          </p>
+
+          <p>{movie.overview || "No description available."}</p>
+
+          <button className="play-button" onClick={onClose}>
+            <Play size={20} fill="currentColor" /> Explore
           </button>
-          <button className="more-button" onClick={() => onToggleSave(movie)}>
+
+          <button
+            className="more-button"
+            onClick={() => onToggleSave(movie)}
+          >
             {isSaved ? "✓ Added to My List" : "+ Add to My List"}
           </button>
         </div>
@@ -243,50 +340,117 @@ function MovieModal({ movie, onClose, isSaved, onToggleSave }) {
 }
 
 export default function App() {
+  const [trending, setTrending] = useState([]);
+  const [popular, setPopular] = useState([]);
+  const [action, setAction] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
   const [selectedMovie, setSelectedMovie] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMovies() {
+      try {
+        setLoading(true);
+        setError("");
+
+        const results = await Promise.all([
+          getTrendingMovies(),
+          getPopularMovies(),
+          getActionMovies(),
+        ]);
+
+        if (!cancelled) {
+          setTrending(results[0]);
+          setPopular(results[1]);
+          setAction(results[2]);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err.message || "Unable to load movies.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    loadMovies();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function toggleSave(movie) {
     setWatchlist((current) =>
-      current.some((item) => item.title === movie.title)
-        ? current.filter((item) => item.title !== movie.title)
+      current.some((item) => item.id === movie.id)
+        ? current.filter((item) => item.id !== movie.id)
         : [...current, movie]
     );
   }
 
-  const allMovies = [...movies.trending, ...movies.action];
-  const savedMovies = allMovies.filter((movie) =>
-    watchlist.some((saved) => saved.title === movie.title)
-  );
+  const featuredMovie = trending[0] || popular[0] || null;
 
   return (
     <div className="app-shell">
       <Navbar />
-      <Hero />
+
+      <Hero
+        movie={featuredMovie}
+        onSelect={setSelectedMovie}
+      />
 
       <main className="catalog">
-        <MovieRow
-          title="Trending Now"
-          items={movies.trending}
-          onSelect={setSelectedMovie}
-          watchlist={watchlist}
-          onToggleSave={toggleSave}
-        />
-        <MovieRow
-          title="Action & Adventure"
-          items={movies.action}
-          onSelect={setSelectedMovie}
-          watchlist={watchlist}
-          onToggleSave={toggleSave}
-        />
-        {savedMovies.length > 0 && (
-          <MovieRow
-            title="My List"
-            items={savedMovies}
-            onSelect={setSelectedMovie}
-            watchlist={watchlist}
-            onToggleSave={toggleSave}
-          />
+        {loading && (
+          <p style={{ padding: "24px 4%" }}>
+            Loading movies...
+          </p>
+        )}
+
+        {error && (
+          <div style={{ padding: "24px 4%" }}>
+            <p>We couldn't load the movie catalog.</p>
+            <p>{error}</p>
+            <p>Check your TMDB token and internet connection.</p>
+          </div>
+        )}
+
+        {!loading && !error && (
+          <>
+            <MovieRow
+              title="Trending Now"
+              items={trending}
+              onSelect={setSelectedMovie}
+              watchlist={watchlist}
+              onToggleSave={toggleSave}
+            />
+
+            <MovieRow
+              title="Popular Movies"
+              items={popular}
+              onSelect={setSelectedMovie}
+              watchlist={watchlist}
+              onToggleSave={toggleSave}
+            />
+
+            <MovieRow
+              title="Action & Adventure"
+              items={action}
+              onSelect={setSelectedMovie}
+              watchlist={watchlist}
+              onToggleSave={toggleSave}
+            />
+
+            <MovieRow
+              title="My List"
+              items={watchlist}
+              onSelect={setSelectedMovie}
+              watchlist={watchlist}
+              onToggleSave={toggleSave}
+            />
+          </>
         )}
       </main>
 
@@ -294,7 +458,7 @@ export default function App() {
         movie={selectedMovie}
         onClose={() => setSelectedMovie(null)}
         isSaved={watchlist.some(
-          (saved) => saved.title === selectedMovie?.title
+          (saved) => saved.id === selectedMovie?.id
         )}
         onToggleSave={toggleSave}
       />

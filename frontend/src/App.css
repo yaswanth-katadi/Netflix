@@ -538,3 +538,31 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+
+
+.poster-placeholder {
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: #292929;
+  color: #ddd;
+  text-align: center;
+}
+
+.movie-card {
+  min-width: 0;
+  flex: 0 0 23%;
+}
+
+@media (max-width: 1000px) {
+  .movie-card {
+    flex-basis: 30%;
+  }
+}
+
+@media (max-width: 700px) {
+  .movie-card {
+    flex-basis: 43%;
+  }
+}
